@@ -1,0 +1,4 @@
+*.class
+*.db
+MvcSqliteExample.java
+Screenshot*.png
