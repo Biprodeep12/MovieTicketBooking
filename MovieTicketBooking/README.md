@@ -1,11 +1,12 @@
 # Movie Ticket Booking System
 
 WCA Mini Project: Class Group A1, Team 1.
-A simple Java Swing app using **MVC** and **JDBC (SQLite)**, all in `MovieBookingApp.java`:
+A simple Java Swing app using **MVC** and **JDBC (SQLite)**, one class per file:
 
-- **Model** (`BookingModel`): database tables, SQL, seat pricing
-- **View** (`BookingView`): Swing window with 3 tabs
-- **Controller** (`BookingController`): button actions, input checks, connects Model and View
+- `MovieBookingApp.java`: `main`, starts the app
+- **Model** (`BookingModel.java`): database tables, SQL, seat pricing
+- **View** (`BookingView.java`): Swing GUI window with 3 tabs
+- **Controller** (`BookingController.java`): button actions, input checks, connects Model and View
 
 ## Features
 
@@ -102,14 +103,14 @@ A simple Java Swing app using **MVC** and **JDBC (SQLite)**, all in `MovieBookin
 **Windows**
 
 ```
-javac -cp ".;sqlite-jdbc-3.53.2.1.jar" MovieBookingApp.java
+javac -cp ".;sqlite-jdbc-3.53.2.1.jar" *.java
 java -cp ".;sqlite-jdbc-3.53.2.1.jar" MovieBookingApp
 ```
 
 **Linux / macOS**
 
 ```
-javac -cp ".:sqlite-jdbc-3.53.2.1.jar" MovieBookingApp.java
+javac -cp ".:sqlite-jdbc-3.53.2.1.jar" *.java
 java -cp ".:sqlite-jdbc-3.53.2.1.jar" MovieBookingApp
 ```
 
