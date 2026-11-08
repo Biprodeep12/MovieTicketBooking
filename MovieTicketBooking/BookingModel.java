@@ -1,4 +1,5 @@
 import java.sql.*;
+import java.time.LocalDate;
 import java.util.ArrayList;
 
 // ==========================================
@@ -11,10 +12,11 @@ import java.util.ArrayList;
  * The database is a single file called movie_booking.db (SQLite).
  * Java talks to it using JDBC (Java Database Connectivity).
  *
- * It has 2 tables:
+ * It has 3 tables:
  *   shows    -> one row per show:  id, movie, show_date, show_time, screen, price
  *   bookings -> one row per seat:  id, show_id, seat, name, phone, price
- *               (show_id says which show the seat belongs to)
+ *               (show_id says which show the seat belongs to, phone says whose booking it is)
+ *   users    -> one row per user:  phone, password
  *
  * If something goes wrong (for example the seat is already taken), the method
  * "throws" an SQLException. The Controller catches it and shows a message.
@@ -60,9 +62,9 @@ public class BookingModel {
         return list;
     }
 
-    // Creates the 2 tables the first time the app runs.
+    // Creates the 3 tables the first time the app runs.
     // "IF NOT EXISTS" means nothing happens if they're already there.
-    // If there are no shows yet, 3 sample shows are added so the app isn't empty.
+    // If there are no shows yet, 3 sample shows for tomorrow are added so the app isn't empty.
     public void createTables() throws SQLException {
         // UNIQUE(screen, show_date, show_time): a screen can't have 2 shows at the same date and time
         exec("CREATE TABLE IF NOT EXISTS shows (id INTEGER PRIMARY KEY, movie TEXT, show_date TEXT, "
@@ -70,17 +72,24 @@ public class BookingModel {
         // UNIQUE(show_id, seat): the same seat can't be booked twice for one show
         exec("CREATE TABLE IF NOT EXISTS bookings (id INTEGER PRIMARY KEY, show_id INTEGER, seat TEXT, "
                 + "name TEXT, phone TEXT, price REAL, UNIQUE(show_id, seat))");
-        if (getShows().isEmpty())
+        // one row per user account; the phone number is the PRIMARY KEY, so it can't be used twice
+        exec("CREATE TABLE IF NOT EXISTS users (phone TEXT PRIMARY KEY, password TEXT)");
+        if (getShows().isEmpty()) {
+            String day = LocalDate.now().plusDays(1).toString(); // tomorrow, e.g. "2026-11-09"
             exec("INSERT INTO shows(movie, show_date, show_time, screen, price) VALUES "
-                    + "('Inception', '2026-11-05', '10:00', 'Screen 1', 180), "
-                    + "('Interstellar', '2026-11-05', '14:00', 'Screen 1', 200), "
-                    + "('3 Idiots', '2026-11-05', '18:00', 'Screen 2', 150)");
+                    + "('Inception', ?, '10:00', 'Screen 1', 180), "
+                    + "('Interstellar', ?, '14:00', 'Screen 1', 200), "
+                    + "('3 Idiots', ?, '18:00', 'Screen 2', 150)", day, day, day);
+        }
     }
 
-    // Returns every show, earliest first.
-    // Each row: {id, movie, date, time, screen, price}
+    // Returns every show, earliest first, with how many seats are already booked.
+    // The (SELECT COUNT(*) ...) part counts the bookings that belong to each show.
+    // Each row: {id, movie, date, time, screen, price, seatsBooked}
     public ArrayList<String[]> getShows() throws SQLException {
-        return query("SELECT id, movie, show_date, show_time, screen, price FROM shows ORDER BY show_date, show_time");
+        return query("SELECT id, movie, show_date, show_time, screen, price, "
+                + "(SELECT COUNT(*) FROM bookings b WHERE b.show_id = shows.id) "
+                + "FROM shows ORDER BY show_date, show_time");
     }
 
     // Returns every booking, newest first.
@@ -89,6 +98,25 @@ public class BookingModel {
     public ArrayList<String[]> getBookings() throws SQLException {
         return query("SELECT b.id, s.movie, s.show_date, s.show_time, b.seat, b.name, b.phone, b.price "
                 + "FROM bookings b JOIN shows s ON s.id = b.show_id ORDER BY b.id DESC");
+    }
+
+    // Returns the bookings of ONE user (found by phone number), earliest show first.
+    // Each row: {movie, date, time, screen, seat, price}
+    public ArrayList<String[]> getUserBookings(String phone) throws SQLException {
+        return query("SELECT s.movie, s.show_date, s.show_time, s.screen, b.seat, b.price "
+                + "FROM bookings b JOIN shows s ON s.id = b.show_id WHERE b.phone = ? "
+                + "ORDER BY s.show_date, s.show_time, b.seat", phone);
+    }
+
+    // Returns the saved password for a phone number, or null if there is no account for it yet.
+    public String getPassword(String phone) throws SQLException {
+        ArrayList<String[]> rows = query("SELECT password FROM users WHERE phone = ?", phone);
+        return rows.isEmpty() ? null : rows.get(0)[0];
+    }
+
+    // Creates a new user account.
+    public void addUser(String phone, String password) throws SQLException {
+        exec("INSERT INTO users(phone, password) VALUES (?, ?)", phone, password);
     }
 
     // Returns the seats already booked for one show, e.g. ["A1", "C5"].
